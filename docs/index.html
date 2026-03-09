@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Epigenetic Clock Selector</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d2e;
+      --surface2: #252840;
+      --border:   #2d3154;
+      --accent:   #7c83d3;
+      --text:     #e8eaf6;
+      --muted:    #8892b0;
+      --green:    #27ae60;
+      --amber:    #f39c12;
+      --red:      #e74c3c;
+      --purple:   #9b59b6;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+           background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ── */
+    header { background: var(--surface); border-bottom: 1px solid var(--border);
+             padding: 20px 32px; }
+    header h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 4px; }
+    header p  { font-size: 0.82rem; color: var(--muted); max-width: 600px; line-height: 1.5; }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 28px 32px; }
+
+    /* ── Wizard card ── */
+    .wizard { background: var(--surface); border: 1px solid var(--border);
+              border-radius: 10px; padding: 28px; margin-bottom: 28px; }
+    .wizard h2 { font-size: 1rem; font-weight: 600; margin-bottom: 18px;
+                 padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 680px) { .form-grid { grid-template-columns: 1fr; } }
+
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 0.8rem; font-weight: 600; color: var(--muted);
+                        text-transform: uppercase; letter-spacing: 0.06em; }
+    select {
+      background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+      padding: 9px 12px; border-radius: 7px; font-size: 0.88rem; cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238892b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center;
+      padding-right: 32px;
+    }
+    select:focus { outline: none; border-color: var(--accent); }
+
+    .form-full { grid-column: 1 / -1; }
+
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none;
+      padding: 10px 28px; border-radius: 7px; font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; margin-top: 8px; transition: opacity 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* ── Results ── */
+    #results { display: none; }
+    #results.visible { display: block; }
+
+    .results-header { font-size: 0.82rem; color: var(--muted); margin-bottom: 16px; }
+    .results-header strong { color: var(--text); }
+
+    .clock-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 20px 22px; margin-bottom: 14px;
+      border-left: 4px solid var(--accent); transition: border-color 0.15s;
+    }
+    .clock-card.rank-1 { border-left-color: var(--green); }
+    .clock-card.rank-2 { border-left-color: var(--accent); }
+    .clock-card.rank-3 { border-left-color: var(--amber); }
+
+    .clock-top { display: flex; align-items: flex-start; gap: 14px; margin-bottom: 10px; }
+    .rank-badge {
+      width: 28px; height: 28px; border-radius: 50%; display: flex;
+      align-items: center; justify-content: center; font-size: 0.78rem;
+      font-weight: 700; flex-shrink: 0; margin-top: 2px;
+    }
+    .rank-badge.r1 { background: #1a3a2a; color: var(--green); }
+    .rank-badge.r2 { background: #1f2245; color: var(--accent); }
+    .rank-badge.r3 { background: #3a2a0a; color: var(--amber); }
+    .rank-badge.r4 { background: #2a1a1a; color: #c0392b; }
+
+    .clock-name { font-size: 1rem; font-weight: 700; margin-bottom: 3px; }
+    .clock-meta { font-size: 0.76rem; color: var(--muted); }
+
+    .tags { display: flex; flex-wrap: wrap; gap: 5px; margin: 10px 0; }
+    .tag {
+      padding: 2px 9px; border-radius: 10px; font-size: 0.7rem; font-weight: 600;
+    }
+    .tag-tissue   { background: #1a2d4a; color: #6ab0e8; }
+    .tag-age      { background: #2d1a3d; color: #c39be8; }
+    .tag-goal     { background: #1a3a2a; color: #7acf9b; }
+    .tag-array    { background: #2d2a1a; color: #c8b86a; }
+    .tag-cpgs     { background: #1a1a2d; color: #8892b0; }
+    .tag-caution  { background: #3a1a1a; color: #e88080; }
+
+    .clock-why { font-size: 0.84rem; color: #c0c8e0; line-height: 1.6; margin-bottom: 10px; }
+    .clock-limit { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
+    .clock-limit strong { color: var(--amber); }
+
+    .clock-footer { margin-top: 12px; padding-top: 10px;
+                    border-top: 1px solid var(--border); display: flex; gap: 12px; }
+    .ext { color: var(--accent); text-decoration: none; font-size: 0.78rem; }
+    .ext:hover { text-decoration: underline; }
+
+    /* ── Comparison table ── */
+    .section-title { font-size: 1rem; font-weight: 600; margin: 32px 0 14px;
+                     padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+    .table-wrap { overflow-x: auto; border-radius: 8px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    thead th { background: var(--surface2); padding: 10px 14px; text-align: left;
+               color: var(--muted); font-weight: 600; font-size: 0.72rem;
+               text-transform: uppercase; letter-spacing: 0.06em;
+               border-bottom: 1px solid var(--border); }
+    tbody tr { border-bottom: 1px solid var(--border); }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--surface2); }
+    td { padding: 9px 14px; vertical-align: top; line-height: 1.5; }
+    td.name { font-weight: 600; color: var(--text); white-space: nowrap; }
+    .dot-g { color: var(--green); } .dot-a { color: var(--amber); } .dot-r { color: var(--red); }
+
+    /* ── About section ── */
+    .about { background: var(--surface); border: 1px solid var(--border);
+             border-radius: 10px; padding: 22px; margin-top: 32px; }
+    .about h3 { font-size: 0.9rem; font-weight: 600; margin-bottom: 10px; }
+    .about p  { font-size: 0.82rem; color: var(--muted); line-height: 1.7; margin-bottom: 8px; }
+    .about a  { color: var(--accent); }
+
+    footer { padding: 20px 32px; text-align: center; font-size: 0.74rem; color: #3a4060;
+             border-top: 1px solid var(--border); margin-top: 40px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⏱ Epigenetic Clock Selector</h1>
+  <p>Enter your study context to get ranked clock recommendations with rationale, limitations,
+     and key references. Designed for researchers in cardiovascular, paediatric, and
+     neurodevelopmental genomics.</p>
+</header>
+
+<div class="container">
+
+  <!-- Wizard -->
+  <div class="wizard">
+    <h2>Study Context</h2>
+    <div class="form-grid">
+
+      <div class="form-group">
+        <label>Sample tissue</label>
+        <select id="tissue">
+          <option value="">— Select —</option>
+          <option value="blood">Whole blood / PBMCs</option>
+          <option value="buccal">Saliva / Buccal epithelial</option>
+          <option value="brain">Brain tissue</option>
+          <option value="muscle">Skeletal muscle</option>
+          <option value="adipose">Adipose tissue</option>
+          <option value="liver">Liver</option>
+          <option value="cord_blood">Cord blood (newborn)</option>
+          <option value="placenta">Placenta</option>
+          <option value="skin">Skin / Fibroblasts</option>
+          <option value="multi">Multiple tissues / Unknown</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Age range of cohort</label>
+        <select id="age">
+          <option value="">— Select —</option>
+          <option value="newborn">Newborns (0–1 yr)</option>
+          <option value="pediatric">Paediatric (1–18 yr)</option>
+          <option value="mixed_ped">Mixed incl. children</option>
+          <option value="adult">Adults (18–65 yr)</option>
+          <option value="elderly">Elderly (65+ yr)</option>
+          <option value="mixed">Mixed / All ages</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Primary study goal</label>
+        <select id="goal">
+          <option value="">— Select —</option>
+          <option value="bio_age">Estimate biological / epigenetic age</option>
+          <option value="mortality">Predict mortality or morbidity</option>
+          <option value="pace">Measure pace of ageing (longitudinal)</option>
+          <option value="disease">Disease association / case-control</option>
+          <option value="treatment">Treatment or intervention response</option>
+          <option value="compare">Compare age across tissue types</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Array platform</label>
+        <select id="array">
+          <option value="">— Select —</option>
+          <option value="epic">Illumina EPIC / 850K</option>
+          <option value="450k">Illumina 450K</option>
+          <option value="either">Either / Both</option>
+          <option value="wgbs">WGBS (whole-genome bisulfite)</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Disease context</label>
+        <select id="disease">
+          <option value="">— General / Not specified —</option>
+          <option value="cardiac">Congenital heart disease (CHD)</option>
+          <option value="cardiometabolic">Cardiovascular / cardiometabolic</option>
+          <option value="ndd">Neurodevelopmental disorder (NDD)</option>
+          <option value="cancer">Cancer</option>
+          <option value="metabolic">Metabolic disease (T2D, obesity)</option>
+          <option value="aging">Healthy ageing / longevity</option>
+          <option value="psychiatric">Psychiatric disorders</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label>Technical concern</label>
+        <select id="tech">
+          <option value="">— None specific —</option>
+          <option value="batch">Batch effects / multi-cohort</option>
+          <option value="small_n">Small sample size (&lt;50)</option>
+          <option value="cross_platform">Cross-platform (450K + EPIC)</option>
+          <option value="robustness">Reproducibility / robustness</option>
+        </select>
+      </div>
+
+    </div>
+    <button class="btn-primary" onclick="recommend()">Get Recommendations →</button>
+  </div>
+
+  <!-- Results -->
+  <div id="results">
+    <p class="results-header" id="results-summary"></p>
+    <div id="clock-cards"></div>
+
+    <div class="section-title">Full Clock Comparison</div>
+    <div class="table-wrap">
+      <table id="comparison-table">
+        <thead>
+          <tr>
+            <th>Clock</th><th>Year</th><th>CpGs</th><th>Tissue</th>
+            <th>Age range</th><th>Goal</th><th>450K</th><th>EPIC</th><th>Key limitation</th>
+          </tr>
+        </thead>
+        <tbody id="table-body"></tbody>
+      </table>
+    </div>
+
+    <div class="about">
+      <h3>How to use these recommendations</h3>
+      <p>These recommendations are based on the published validation data for each clock and
+         general field consensus. No single clock is universally best — consider running
+         2–3 clocks and reporting concordance, as discordant results can themselves be informative
+         (as demonstrated in paediatric CHD cohorts where Hannum/Horvath diverge from
+         EN and Levine clocks).</p>
+      <p>For paediatric and mixed-age cohorts in particular, clock selection is a critical
+         methodological decision — see
+         <a href="https://www.nature.com/articles/s41576-024-00718-w" target="_blank">
+         Schuurmans et al., Nat Rev Genet 2026</a> for a recent review of clocks in early life.</p>
+      <p>All clock implementations are available in R via the
+         <a href="https://www.bioconductor.org/packages/methylclock/" target="_blank">methylclock</a>
+         or
+         <a href="https://github.com/danbelsky/DunedinPACE" target="_blank">individual GitHub repos</a>.
+      </p>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<footer>
+  Built for cardiovascular and neurodevelopmental genomics research ·
+  <a href="https://github.com/jlmthompson/epigenetic-clock-selector" style="color:#3a4060">GitHub</a>
+</footer>
+
+<script>
+// ── Clock database ──────────────────────────────────────────────────────────
+const CLOCKS = [
+  {
+    id: "horvath2013",
+    name: "Horvath 2013",
+    aka: "Pan-tissue clock",
+    year: 2013,
+    cpgs: 353,
+    tissues: ["blood","buccal","brain","muscle","adipose","liver","skin","multi"],
+    ages: ["pediatric","mixed_ped","adult","elderly","mixed"],
+    goals: ["bio_age","disease","compare"],
+    array: ["450k","epic","either"],
+    disease: ["cardiac","ndd","cardiometabolic","aging","psychiatric","metabolic","cancer"],
+    tech: [],
+    why: "The original pan-tissue clock — validated across >50 tissue types and works in children and adults. Best choice when comparing epigenetic age across different tissues in the same study, or when tissue type varies. Widely cited, enabling comparison with a large existing literature.",
+    limitation: "Slightly underestimates age in blood compared to blood-specific clocks. Not designed to predict mortality — use Levine or GrimAge for that. Performance in very young children (&lt;2 yr) is limited.",
+    ref: "Horvath S. Genome Biol 2013",
+    doi: "10.1186/gb-2013-14-10-r115",
+    pmid: "24138928",
+    r_pkg: "methylclock::DNAmAge()",
+  },
+  {
+    id: "hannum2013",
+    name: "Hannum 2013",
+    aka: "Blood clock",
+    year: 2013,
+    cpgs: 71,
+    tissues: ["blood"],
+    ages: ["adult","elderly","mixed"],
+    goals: ["bio_age","disease"],
+    array: ["450k","epic","either"],
+    disease: ["cardiometabolic","aging","cancer","metabolic","psychiatric"],
+    tech: [],
+    why: "Blood-specific clock, better calibrated for whole blood than Horvath. Minimal CpG set (71 CpGs) makes it robust to missing data and cross-platform use. Good for large epidemiological blood cohorts with adult participants.",
+    limitation: "Blood only — do not use for other tissues. Not validated in children or paediatric cohorts. Does not predict mortality as well as second-generation clocks.",
+    ref: "Hannum G et al. Mol Cell 2013",
+    doi: "10.1016/j.molcel.2012.10.016",
+    pmid: "23177740",
+    r_pkg: "methylclock::DNAmAge(clock='Hannum')",
+  },
+  {
+    id: "levine2018",
+    name: "PhenoAge (Levine 2018)",
+    aka: "Phenotypic Age clock",
+    year: 2018,
+    cpgs: 513,
+    tissues: ["blood"],
+    ages: ["adult","elderly","mixed"],
+    goals: ["bio_age","mortality","disease"],
+    array: ["450k","epic","either"],
+    disease: ["cardiometabolic","aging","cancer","metabolic","cardiac"],
+    tech: ["cross_platform"],
+    why: "Second-generation clock trained to predict 'phenotypic age' — a composite of clinical biomarkers associated with mortality. Outperforms Horvath and Hannum for predicting morbidity and mortality. Good for disease association studies in adults. Works across 450K and EPIC.",
+    limitation: "Blood only. Developed and validated primarily in adults — performance in children is uncertain. Requires careful interpretation: higher PhenoAge acceleration may reflect disease burden rather than pure biological ageing.",
+    ref: "Levine ME et al. Aging 2018",
+    doi: "10.18632/aging.101414",
+    pmid: "29676998",
+    r_pkg: "methylclock::DNAmAge(clock='PhenoAge')",
+  },
+  {
+    id: "grimage2019",
+    name: "GrimAge (Lu 2019)",
+    aka: "GrimAge",
+    year: 2019,
+    cpgs: 1030,
+    tissues: ["blood"],
+    ages: ["adult","elderly"],
+    goals: ["mortality","pace","disease"],
+    array: ["450k","epic","either"],
+    disease: ["cardiometabolic","aging","cancer","metabolic"],
+    tech: [],
+    why: "Strongest predictor of lifespan and health outcomes of all clocks. Incorporates smoking pack-years as a component. Best for studies where the primary interest is mortality prediction or disease risk in adults. Widely used in cardiovascular epidemiology.",
+    limitation: "Blood only, adults only. The smoking component (DNAmPACK) may confound results if smoking status is not controlled. Not appropriate for paediatric or non-blood samples. Requires careful covariate adjustment.",
+    ref: "Lu AT et al. Nat Aging 2019",
+    doi: "10.1038/s43587-019-0012-2",
+    pmid: "32420601",
+    r_pkg: "methyl_grimage R package",
+  },
+  {
+    id: "dunedinpace2022",
+    name: "DunedinPACE (Belsky 2022)",
+    aka: "Pace of ageing",
+    year: 2022,
+    cpgs: 173,
+    tissues: ["blood"],
+    ages: ["adult","elderly","mixed"],
+    goals: ["pace","treatment","disease"],
+    array: ["450k","epic","either"],
+    disease: ["cardiometabolic","aging","metabolic"],
+    tech: ["robustness"],
+    why: "Specifically designed to measure the *rate* of biological ageing rather than age itself — derived from longitudinal multi-system data. Ideal for intervention/treatment studies where you want to detect whether an intervention slows ageing. More sensitive to change than static clocks.",
+    limitation: "Blood only. Developed in adults from a single birth cohort (Dunedin, NZ) — generalisability to diverse or paediatric populations is uncertain. Not designed for age estimation — it gives a 'pace' not an age.",
+    ref: "Belsky DW et al. eLife 2022",
+    doi: "10.7554/eLife.73420",
+    pmid: "35029144",
+    r_pkg: "github.com/danbelsky/DunedinPACE",
+  },
+  {
+    id: "pc_clocks2022",
+    name: "PC Clocks (Higgins-Chen 2022)",
+    aka: "PC-Horvath, PC-Hannum, PC-PhenoAge, PC-GrimAge",
+    year: 2022,
+    cpgs: null,
+    tissues: ["blood"],
+    ages: ["adult","elderly","mixed"],
+    goals: ["bio_age","mortality","disease"],
+    array: ["epic","either"],
+    disease: ["cardiometabolic","aging","cancer","metabolic","cardiac"],
+    tech: ["batch","cross_platform","robustness"],
+    why: "PC-based versions of the four major clocks (Horvath, Hannum, PhenoAge, GrimAge). Dramatically more robust to technical noise, batch effects, and cross-platform variation by projecting methylation data into a low-dimensional PC space first. Highly recommended when data comes from multiple batches or cohorts, or when technical variation is a concern.",
+    limitation: "Requires a relatively large reference set to compute PCs reliably — less suitable for very small studies. Adds a preprocessing step. Blood only.",
+    ref: "Higgins-Chen AT et al. Nat Aging 2022",
+    doi: "10.1038/s43587-022-00248-2",
+    pmid: "37118546",
+    r_pkg: "github.com/MorganLevineLab/PC-Clocks",
+  },
+  {
+    id: "knight2016",
+    name: "Knight 2016",
+    aka: "Cord blood clock",
+    year: 2016,
+    cpgs: 148,
+    tissues: ["cord_blood","blood"],
+    ages: ["newborn","pediatric"],
+    goals: ["bio_age","disease"],
+    array: ["450k","epic","either"],
+    disease: ["ndd","cardiac"],
+    tech: [],
+    why: "Developed specifically for cord blood and newborn samples. The best-validated clock for gestational age estimation in neonates. Appropriate for studies of newborns and very young infants where adult-trained clocks severely underperform.",
+    limitation: "Validated primarily for gestational age in newborns — not calibrated for biological age in older children or adults. Limited disease validation beyond neonatal studies.",
+    ref: "Knight AK et al. Genome Biol 2016",
+    doi: "10.1186/s13059-016-1068-z",
+    pmid: "27717399",
+    r_pkg: "methylclock::gestAge()",
+  },
+  {
+    id: "lee2019",
+    name: "Lee 2019",
+    aka: "Placental / robust cord blood clocks",
+    year: 2019,
+    cpgs: 558,
+    tissues: ["placenta","cord_blood"],
+    ages: ["newborn"],
+    goals: ["bio_age","disease"],
+    array: ["450k","epic","either"],
+    disease: ["cardiac","ndd"],
+    tech: [],
+    why: "Developed for placenta and cord blood, with a 'robust' version (RPC) that handles cell-type heterogeneity in placenta. Best choice for placental epigenetic age studies or when combining cord blood with placenta samples.",
+    limitation: "Placenta and cord blood only. Not applicable to postnatal samples.",
+    ref: "Lee Y et al. Aging 2019",
+    doi: "10.18632/aging.102049",
+    pmid: "31564599",
+    r_pkg: "methylclock::PCAge()",
+  },
+  {
+    id: "pedbe2020",
+    name: "PedBE (McEwen 2020)",
+    aka: "Paediatric Buccal Epithelial clock",
+    year: 2020,
+    cpgs: 94,
+    tissues: ["buccal"],
+    ages: ["pediatric","mixed_ped","newborn"],
+    goals: ["bio_age","disease"],
+    array: ["epic","450k","either"],
+    disease: ["ndd","psychiatric"],
+    tech: [],
+    why: "The only clock specifically validated for buccal epithelial cells in children. Outperforms blood-trained clocks when saliva or buccal swabs are collected from paediatric cohorts. Relevant for NDD studies where buccal sampling is used instead of blood.",
+    limitation: "Buccal tissue only. Validation dataset was predominantly healthy children — limited disease-specific validation. Not appropriate for adults or blood samples.",
+    ref: "McEwen LM et al. Epigenetics 2020",
+    doi: "10.1080/15592294.2019.1626651",
+    pmid: "31154918",
+    r_pkg: "methylclock::PedBEAge()",
+  },
+  {
+    id: "skin_blood2018",
+    name: "Skin & Blood (Horvath 2018)",
+    aka: "Skin-Blood clock",
+    year: 2018,
+    cpgs: 391,
+    tissues: ["skin","blood"],
+    ages: ["adult","elderly","mixed"],
+    goals: ["bio_age","disease"],
+    array: ["450k","epic","either"],
+    disease: ["aging","cardiometabolic"],
+    tech: [],
+    why: "Validated for both skin fibroblasts and blood — useful for in vitro studies using fibroblast-derived cells, or studies collecting both tissue types. Better calibrated for skin than the pan-tissue clock.",
+    limitation: "Less validated than the original pan-tissue clock for most applications. Not recommended as a primary clock unless skin/fibroblast tissue is the focus.",
+    ref: "Horvath S et al. Aging 2018",
+    doi: "10.18632/aging.101508",
+    pmid: "30048243",
+    r_pkg: "methylclock::DNAmAge(clock='skinHorvath')",
+  },
+  {
+    id: "en_clock",
+    name: "EN Clock (ElasticNet)",
+    aka: "EN / ElasticNet clock",
+    year: 2018,
+    cpgs: 514,
+    tissues: ["blood"],
+    ages: ["pediatric","mixed_ped","adult","mixed"],
+    goals: ["bio_age","disease"],
+    array: ["450k","epic","either"],
+    disease: ["cardiac","ndd","cardiometabolic"],
+    tech: ["cross_platform","small_n"],
+    why: "Trained with ElasticNet regularisation — more stable in small or heterogeneous cohorts. Good CpG coverage on both 450K and EPIC arrays, making it practical when cross-platform comparisons are needed. Useful for paediatric/mixed-age cohorts where Horvath and Hannum may underperform.",
+    limitation: "Less widely benchmarked than Horvath, Hannum, or Levine. Interpretability of 'age acceleration' differs from first-generation clocks. Perform alongside another clock for validation.",
+    ref: "Zhang Y et al. Nat Commun 2019",
+    doi: "10.1038/s41467-019-11487-2",
+    pmid: "31399581",
+    r_pkg: "methylclock::DNAmAge(clock='Zhang')",
+  },
+];
+
+// ── Scoring logic ─────────────────────────────────────────────────────────────
+function scoreClock(clock, tissue, age, goal, array, disease, tech) {
+  let score = 0;
+  const notes = [];
+
+  // Tissue match
+  if (tissue && clock.tissues.includes(tissue)) score += 30;
+  else if (tissue && clock.tissues.includes("multi")) score += 15;
+  else if (tissue) score -= 20;
+
+  // Age match
+  if (age && clock.ages.includes(age)) score += 25;
+  else if (age && clock.ages.includes("mixed")) score += 10;
+  else if (age) score -= 15;
+
+  // Goal match
+  if (goal && clock.goals.includes(goal)) score += 20;
+  else if (goal) score -= 5;
+
+  // Array match
+  if (array && array !== "wgbs") {
+    if (clock.array.includes(array) || clock.array.includes("either")) score += 10;
+  }
+
+  // Disease context
+  if (disease && clock.disease.includes(disease)) score += 10;
+
+  // Technical concern
+  if (tech && clock.tech.includes(tech)) score += 10;
+
+  return score;
+}
+
+function recommend() {
+  const tissue  = document.getElementById("tissue").value;
+  const age     = document.getElementById("age").value;
+  const goal    = document.getElementById("goal").value;
+  const array   = document.getElementById("array").value;
+  const disease = document.getElementById("disease").value;
+  const tech    = document.getElementById("tech").value;
+
+  if (!tissue && !age && !goal) {
+    alert("Please select at least Tissue, Age range, and Study goal.");
+    return;
+  }
+
+  // Score and rank
+  const scored = CLOCKS.map(c => ({
+    ...c,
+    score: scoreClock(c, tissue, age, goal, array, disease, tech)
+  })).sort((a, b) => b.score - a.score);
+
+  // Build context summary
+  const labels = {
+    tissue:  {"blood":"whole blood","buccal":"buccal/saliva","brain":"brain tissue","muscle":"skeletal muscle","adipose":"adipose","liver":"liver","cord_blood":"cord blood","placenta":"placenta","skin":"skin/fibroblasts","multi":"multiple tissues"},
+    age:     {"newborn":"newborns","pediatric":"paediatric","mixed_ped":"mixed incl. children","adult":"adults","elderly":"elderly","mixed":"mixed ages"},
+    goal:    {"bio_age":"biological age estimation","mortality":"mortality prediction","pace":"pace of ageing","disease":"disease association","treatment":"treatment response","compare":"cross-tissue comparison"},
+  };
+
+  const ctx = [
+    tissue  ? labels.tissue[tissue]  : null,
+    age     ? labels.age[age]        : null,
+    goal    ? labels.goal[goal]      : null,
+  ].filter(Boolean).join(", ");
+
+  document.getElementById("results-summary").innerHTML =
+    `Showing recommendations for: <strong>${ctx || "general study"}</strong>`;
+
+  // Cards (top 4)
+  const cards = scored.slice(0, 4);
+  document.getElementById("clock-cards").innerHTML = cards.map((c, i) => `
+    <div class="clock-card rank-${i+1}">
+      <div class="clock-top">
+        <div class="rank-badge r${i+1}">#${i+1}</div>
+        <div>
+          <div class="clock-name">${c.name}</div>
+          <div class="clock-meta">${c.aka} · ${c.year} · ${c.cpgs ? c.cpgs+" CpGs" : "PC-based"}</div>
+        </div>
+      </div>
+      <div class="tags">
+        ${c.tissues.slice(0,3).map(t => `<span class="tag tag-tissue">${t.replace("_"," ")}</span>`).join("")}
+        ${c.ages.slice(0,2).map(a => `<span class="tag tag-age">${a.replace("_"," ")}</span>`).join("")}
+        ${c.goals.slice(0,2).map(g => `<span class="tag tag-goal">${g.replace("_"," ")}</span>`).join("")}
+        ${c.array.includes("epic") ? '<span class="tag tag-array">EPIC</span>' : ""}
+        ${c.array.includes("450k") ? '<span class="tag tag-array">450K</span>' : ""}
+      </div>
+      <div class="clock-why">${c.why}</div>
+      <div class="clock-limit"><strong>⚠ Limitation:</strong> ${c.limitation}</div>
+      <div class="clock-footer">
+        <a class="ext" href="https://pubmed.ncbi.nlm.nih.gov/${c.pmid}/" target="_blank">📄 ${c.ref}</a>
+        <a class="ext" href="https://doi.org/${c.doi}" target="_blank">DOI ↗</a>
+      </div>
+    </div>`).join("");
+
+  // Comparison table (all clocks)
+  const checks = {"good":"<span class='dot-g'>✓</span>","partial":"<span class='dot-a'>~</span>","no":"<span class='dot-r'>✗</span>"};
+  document.getElementById("table-body").innerHTML = CLOCKS.map(c => {
+    const has450  = c.array.includes("450k")||c.array.includes("either") ? checks.good : checks.no;
+    const hasEPIC = c.array.includes("epic")||c.array.includes("either") ? checks.good : checks.no;
+    const ageStr  = c.ages.includes("pediatric")||c.ages.includes("newborn") ? "Paediatric+"
+                  : c.ages.includes("mixed") ? "All ages" : "Adults";
+    const tissueStr = c.tissues.includes("multi") ? "Pan-tissue"
+                    : c.tissues.slice(0,2).map(t=>t.replace("_"," ")).join(", ");
+    const goalStr = c.goals.map(g=>({bio_age:"Bio age",mortality:"Mortality",pace:"Pace",
+                    disease:"Disease",treatment:"Treatment",compare:"Compare"}[g])).join(", ");
+    return `<tr>
+      <td class="name">${c.name}</td>
+      <td>${c.year}</td>
+      <td>${c.cpgs||"PC"}</td>
+      <td>${tissueStr}</td>
+      <td>${ageStr}</td>
+      <td>${goalStr}</td>
+      <td>${has450}</td>
+      <td>${hasEPIC}</td>
+      <td style="color:var(--muted);font-size:0.75rem">${c.limitation.split(".")[0]}.</td>
+    </tr>`;
+  }).join("");
+
+  document.getElementById("results").classList.add("visible");
+  document.getElementById("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+</script>
+</body>
+</html>
