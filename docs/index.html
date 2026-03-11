@@ -106,7 +106,7 @@
     .tag-cpgs     { background: #e8edf7; color: #546080; }
     .tag-caution  { background: #f7e0e0; color: #8a2020; }
 
-    .clock-why { font-size: 0.84rem; color: #c0c8e0; line-height: 1.6; margin-bottom: 10px; }
+    .clock-why { font-size: 0.84rem; color: var(--muted); line-height: 1.6; margin-bottom: 10px; }
     .clock-limit { font-size: 0.8rem; color: var(--muted); line-height: 1.5; }
     .clock-limit strong { color: var(--amber); }
 
@@ -246,7 +246,7 @@
          Specialised clocks (PedBE, Knight, Lee) are designed for specific tissues or life stages
          and should be preferred in those contexts.</p>
       <p>For a comprehensive review of epigenetic clock methodology and interpretation, see
-         <a href="https://www.nature.com/articles/s41576-018-0015-2" target="_blank">Horvath &amp; Raj,
+         <a href="https://pubmed.ncbi.nlm.nih.gov/29872364/" target="_blank">Horvath &amp; Raj,
          Nat Rev Genet 2018</a>.</p>
       <p>Most clocks are implemented in R via the
          <a href="https://bioconductor.org/packages/release/bioc/html/methylclock.html" target="_blank">methylclock</a>
@@ -523,12 +523,14 @@ function recommend() {
     tissue:  {"blood":"whole blood","buccal":"buccal/saliva","brain":"brain tissue","muscle":"skeletal muscle","adipose":"adipose","liver":"liver","cord_blood":"cord blood","placenta":"placenta","skin":"skin/fibroblasts","multi":"multiple tissues"},
     age:     {"newborn":"newborns","pediatric":"paediatric","mixed_ped":"mixed incl. children","adult":"adults","elderly":"elderly","mixed":"mixed ages"},
     goal:    {"bio_age":"biological age estimation","mortality":"mortality prediction","pace":"pace of ageing","disease":"disease association","treatment":"treatment response","compare":"cross-tissue comparison"},
+    array:   {"epic":"EPIC/850K array","450k":"450K array","either":"EPIC or 450K","wgbs":"WGBS"},
   };
 
   const ctx = [
     tissue  ? labels.tissue[tissue]  : null,
     age     ? labels.age[age]        : null,
     goal    ? labels.goal[goal]      : null,
+    array   ? labels.array[array]    : null,
   ].filter(Boolean).join(", ");
 
   document.getElementById("results-summary").innerHTML =
