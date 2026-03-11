@@ -211,31 +211,6 @@
         </select>
       </div>
 
-      <div class="form-group">
-        <label>Disease context</label>
-        <select id="disease">
-          <option value="">— General / Not specified —</option>
-          <option value="cardiac">Congenital heart disease (CHD)</option>
-          <option value="cardiometabolic">Cardiovascular / cardiometabolic</option>
-          <option value="ndd">Neurodevelopmental disorder (NDD)</option>
-          <option value="cancer">Cancer</option>
-          <option value="metabolic">Metabolic disease (T2D, obesity)</option>
-          <option value="aging">Healthy ageing / longevity</option>
-          <option value="psychiatric">Psychiatric disorders</option>
-        </select>
-      </div>
-
-      <div class="form-group">
-        <label>Technical concern</label>
-        <select id="tech">
-          <option value="">— None specific —</option>
-          <option value="batch">Batch effects / multi-cohort</option>
-          <option value="small_n">Small sample size (&lt;50)</option>
-          <option value="cross_platform">Cross-platform (450K + EPIC)</option>
-          <option value="robustness">Reproducibility / robustness</option>
-        </select>
-      </div>
-
     </div>
     <button class="btn-primary" onclick="recommend()">Get Recommendations →</button>
   </div>
@@ -251,7 +226,7 @@
         <thead>
           <tr>
             <th>Clock</th><th>Year</th><th>CpGs</th><th>Tissue</th>
-            <th>Age range</th><th>Goal</th><th>450K</th><th>EPIC</th><th>Key limitation</th>
+            <th>Age range</th><th>Goal</th><th>450K</th><th>EPIC</th><th>Key limitation</th><th>Reference</th>
           </tr>
         </thead>
         <tbody id="table-body"></tbody>
@@ -260,27 +235,29 @@
 
     <div class="about">
       <h3>How to use these recommendations</h3>
-      <p>These recommendations are based on the published validation data for each clock and
-         general field consensus. No single clock is universally best — consider running
-         2–3 clocks and reporting concordance, as discordant results can themselves be informative
-         (as demonstrated in paediatric CHD cohorts where Hannum/Horvath diverge from
-         EN and Levine clocks).</p>
-      <p>For paediatric and mixed-age cohorts in particular, clock selection is a critical
-         methodological decision — see
-         <a href="https://www.nature.com/articles/s41576-024-00718-w" target="_blank">
-         Schuurmans et al., Nat Rev Genet 2026</a> for a recent review of clocks in early life.</p>
-      <p>All clock implementations are available in R via the
-         <a href="https://www.bioconductor.org/packages/methylclock/" target="_blank">methylclock</a>
-         or
-         <a href="https://github.com/danbelsky/DunedinPACE" target="_blank">individual GitHub repos</a>.
-      </p>
+      <p>Recommendations are based on the training datasets, validation studies, and tissue/age
+         coverage reported for each clock. No single clock is universally optimal — where possible,
+         consider running 2–3 complementary clocks and reporting concordance. Discordant results
+         can themselves be informative.</p>
+      <p>First-generation clocks (Horvath, Hannum) estimate biological age relative to
+         chronological age and are best suited to cross-sectional studies. Second-generation clocks
+         (PhenoAge, GrimAge, DunedinPACE) are trained on health outcomes and mortality, making them
+         more appropriate when the primary interest is disease risk or response to intervention.
+         Specialised clocks (PedBE, Knight, Lee) are designed for specific tissues or life stages
+         and should be preferred in those contexts.</p>
+      <p>For a comprehensive review of epigenetic clock methodology and interpretation, see
+         <a href="https://www.nature.com/articles/s41576-018-0015-2" target="_blank">Horvath &amp; Raj,
+         Nat Rev Genet 2018</a>.</p>
+      <p>Most clocks are implemented in R via the
+         <a href="https://bioconductor.org/packages/release/bioc/html/methylclock.html" target="_blank">methylclock</a>
+         Bioconductor package, or via individual repositories linked in each clock card above.</p>
     </div>
   </div>
 
 </div><!-- /container -->
 
 <footer>
-  Built for cardiovascular and neurodevelopmental genomics research ·
+  Epigenetic Clock Selector ·
   <a href="https://github.com/jlmthompson/epigenetic-clock-selector" style="color:#3a4060">GitHub</a>
 </footer>
 
@@ -499,9 +476,8 @@ const CLOCKS = [
 ];
 
 // ── Scoring logic ─────────────────────────────────────────────────────────────
-function scoreClock(clock, tissue, age, goal, array, disease, tech) {
+function scoreClock(clock, tissue, age, goal, array) {
   let score = 0;
-  const notes = [];
 
   // Tissue match
   if (tissue && clock.tissues.includes(tissue)) score += 30;
@@ -522,12 +498,6 @@ function scoreClock(clock, tissue, age, goal, array, disease, tech) {
     if (clock.array.includes(array) || clock.array.includes("either")) score += 10;
   }
 
-  // Disease context
-  if (disease && clock.disease.includes(disease)) score += 10;
-
-  // Technical concern
-  if (tech && clock.tech.includes(tech)) score += 10;
-
   return score;
 }
 
@@ -536,8 +506,6 @@ function recommend() {
   const age     = document.getElementById("age").value;
   const goal    = document.getElementById("goal").value;
   const array   = document.getElementById("array").value;
-  const disease = document.getElementById("disease").value;
-  const tech    = document.getElementById("tech").value;
 
   if (!tissue && !age && !goal) {
     alert("Please select at least Tissue, Age range, and Study goal.");
@@ -547,7 +515,7 @@ function recommend() {
   // Score and rank
   const scored = CLOCKS.map(c => ({
     ...c,
-    score: scoreClock(c, tissue, age, goal, array, disease, tech)
+    score: scoreClock(c, tissue, age, goal, array)
   })).sort((a, b) => b.score - a.score);
 
   // Build context summary
@@ -566,8 +534,8 @@ function recommend() {
   document.getElementById("results-summary").innerHTML =
     `Showing recommendations for: <strong>${ctx || "general study"}</strong>`;
 
-  // Cards (top 4)
-  const cards = scored.slice(0, 4);
+  // Cards (top 3)
+  const cards = scored.slice(0, 3);
   document.getElementById("clock-cards").innerHTML = cards.map((c, i) => `
     <div class="clock-card rank-${i+1}">
       <div class="clock-top">
@@ -613,6 +581,7 @@ function recommend() {
       <td>${has450}</td>
       <td>${hasEPIC}</td>
       <td style="color:var(--muted);font-size:0.75rem">${c.limitation.split(".")[0]}.</td>
+      <td><a class="ext" href="https://pubmed.ncbi.nlm.nih.gov/${c.pmid}/" target="_blank">${c.ref}</a></td>
     </tr>`;
   }).join("");
 
